@@ -14,6 +14,8 @@ public class TodoItemDto
 
     public int Priority { get; init; }
 
+    public long DueDate { get; set; }
+
     public string? Note { get; init; }
 
     private class Mapping : Profile

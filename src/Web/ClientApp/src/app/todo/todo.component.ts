@@ -29,8 +29,11 @@ export class TasksComponent implements OnInit {
   listOptionsEditor: any = {};
   itemDetailsEditor: any = {};
   newItemTitle = '';
+  newItemDueDate = Date.now();
   addingItem = signal(false);
   private originalTitle = '';
+  private originalDueDate = 0;
+  private editingDueDate = 0;
 
   constructor(
     private listsClient: TodoListsClient,
@@ -195,30 +198,47 @@ export class TasksComponent implements OnInit {
   cancelNewItem(): void {
     this.addingItem.set(false);
     this.newItemTitle = '';
+    this.newItemDueDate = Date.now();
   }
 
   commitNewItem(): void {
     this.addingItem.set(false);
-    if (!this.newItemTitle.trim()) {
+    if (!this.newItemTitle.trim() && !this.newItemDueDate) {
       this.newItemTitle = '';
+      this.newItemDueDate = Date.now();
       return;
     }
     const listId = this.selectedListId()!;
     const title = this.newItemTitle.trim();
-    this.itemsClient.createTodoItem({ title, listId } as CreateTodoItemCommand).subscribe({
+    const dueDate = this.newItemDueDate;
+    this.itemsClient.createTodoItem({ title, listId, dueDate } as CreateTodoItemCommand).subscribe({
       next: result => {
         this.lists.update(ls => ls.map(l => l.id === listId
-          ? { ...l, items: [...l.items, { id: result, listId, title, done: false, priority: this.priorityLevels()[0].id } as TodoItemDto] } as TodoListDto
+          ? { ...l, items: [...l.items, { id: result, listId, title, dueDate: dueDate, done: false, priority: this.priorityLevels()[0].id } as TodoItemDto] } as TodoListDto
           : l
         ));
         this.newItemTitle = '';
+        this.newItemDueDate = Date.now();
       },
       error: error => console.error(error)
     });
   }
 
+  onDateChange(event, type = 0) {
+    if (!event && !event.srcElement && event.srcElement.value) {
+      return;
+    }
+    if (type === 0) {
+      this.newItemDueDate = event.srcElement.valueAsNumber;
+    } else {
+      this.editingDueDate = event.srcElement.valueAsNumber;
+    }
+  }
+
   editItem(item: TodoItemDto, inputId: string): void {
     this.originalTitle = item.title;
+    this.originalDueDate = item.dueDate;
+    this.editingDueDate = item.dueDate;
     this.editingItem.set(item);
     setTimeout(() => document.getElementById(inputId)?.focus(), 100);
   }
@@ -226,11 +246,17 @@ export class TasksComponent implements OnInit {
   cancelEdit(): void {
     if (this.editingItem()) {
       this.editingItem()!.title = this.originalTitle;
+      this.editingItem()!.dueDate = this.originalDueDate;
     }
     this.editingItem.set(null);
+    this.editingDueDate = 0;
   }
 
   updateItem(item: TodoItemDto): void {
+    debugger;
+    console.log(item);
+    console.log(this.originalDueDate);
+    console.log(this.originalTitle);
     if (!item.title.trim()) {
       this.deleteItem(item);
       return;
@@ -239,7 +265,7 @@ export class TasksComponent implements OnInit {
     if (item.id === 0) {
       const listId = this.selectedListId()!;
       this.itemsClient
-        .createTodoItem({ title: item.title, listId } as CreateTodoItemCommand)
+        .createTodoItem({ title: item.title, listId, dueDate: this.editingDueDate } as CreateTodoItemCommand)
         .subscribe({
           next: result => {
             this.lists.update(ls => ls.map(l => l.id === listId
@@ -250,6 +276,7 @@ export class TasksComponent implements OnInit {
           error: error => console.error(error)
         });
     } else {
+      item.dueDate = this.editingDueDate;
       this.itemsClient.updateTodoItem(item.id, item as UpdateTodoItemCommand).subscribe({
         next: () => console.log('Update succeeded.'),
         error: error => console.error(error)
@@ -257,6 +284,7 @@ export class TasksComponent implements OnInit {
     }
 
     this.editingItem.set(null);
+    this.editingDueDate = 0;
   }
 
   deleteItem(item: TodoItemDto): void {
@@ -272,6 +300,7 @@ export class TasksComponent implements OnInit {
         : l
       ));
       this.editingItem.set(null);
+      this.editingDueDate = 0;
     } else {
       this.itemsClient.deleteTodoItem(item.id).subscribe({
         next: () => {

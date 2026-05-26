@@ -35,35 +35,45 @@
         </div>
 
         @for (item of selectedList()!.items; track $index; let i = $index) {
-          <div class="todo-item">
-            <input type="checkbox" [(ngModel)]="item.done" (change)="updateItem(item)" />
-            @if (item === editingItem()) {
-              <input id="{{ 'itemTitle' + i }}" type="text" class="todo-item-input"
-                [(ngModel)]="item.title" (keyup.enter)="updateItem(item)"
-                (keyup.escape)="cancelEdit(); $event.target.blur()"
-                (blur)="editingItem() && updateItem(item)"
-                autofocus maxlength="200" />
-            } @else {
-              <span class="todo-item-text" [class.todo-done]="item.done"
+        <div class="todo-item">
+          <input type="checkbox" [(ngModel)]="item.done"/>
+          @if (item === editingItem()) {
+          <input id="{{ 'itemTitle' + i }}" type="text" class="todo-item-input"
+                 [(ngModel)]="item.title" autofocus maxlength="200" />
+          <input id="{{ 'itemDueDate' + i }}" type="date" class="todo-item-input"
+                 value="{{ item.dueDate | date: 'yyyy-MM-dd':'UTC' }}" (change)="onDateChange($event, 1)" />
+          <span>
+            <span class="todo-item-text" (click)="editingItem() && updateItem(item)">Update</span>
+            &nbsp;
+            <span class="todo-item-text" (click)="cancelEdit()">Cancle</span>
+          </span>
+          } @else {
+          <span class="todo-item-text" [class.todo-done]="item.done"
                 (click)="editItem(item, 'itemTitle' + i)">{{ item.title }}</span>
-            }
-            @if (item.id !== 0) {
-              <button class="icon-btn" (click)="showItemDetailsDialog(item)"><lucide-icon name="more-horizontal" [size]="20" [strokeWidth]="2" /></button>
-            }
-          </div>
+          <span class="todo-item-text" [class.todo-done]="item.done"
+                (click)="editItem(item, 'itemDueDate' + i)">{{ (item.dueDate !== 0) ? (item.dueDate | date: 'yyyy-MM-dd':'UTC') : "No Due Date" }}</span>
+          }
+          @if (item.id !== 0) {
+          <button class="icon-btn" (click)="showItemDetailsDialog(item)"><lucide-icon name="more-horizontal" [size]="20" [strokeWidth]="2" /></button>
+          }
+        </div>
         }
 
         <div class="todo-item todo-new-item">
           <input type="checkbox" disabled />
           @if (addingItem()) {
-            <input id="newItemInput" type="text" class="todo-item-input"
-              [(ngModel)]="newItemTitle"
-              (keyup.enter)="commitNewItem()"
-              (keyup.escape)="cancelNewItem(); $event.target.blur()"
-              (blur)="addingItem() && commitNewItem()"
-              maxlength="200" />
+          <input id="newItemInput" type="text" class="todo-item-input"
+                 [(ngModel)]="newItemTitle"
+                 maxlength="200" />
+          <input id="newDueDateInput" type="date" class="todo-item-input"
+                 value="{{ newItemDueDate | date: 'yyyy-MM-dd':'UTC' }}" (change)="onDateChange($event)"/>
+          <span>
+            <span class="todo-item-text" (click)="addingItem() && commitNewItem()">Add</span>
+            &nbsp;
+            <span class="todo-item-text" (click)="cancelNewItem()">Cancle</span>
+          </span>
           } @else {
-            <span class="todo-item-text todo-new-item-placeholder" (click)="startAddingItem()">New task…</span>
+          <span class="todo-item-text todo-new-item-placeholder" (click)="startAddingItem()">New task…</span>
           }
         </div>
       </div>
