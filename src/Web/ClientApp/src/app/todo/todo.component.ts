@@ -283,6 +283,7 @@ export class TasksComponent implements OnInit {
 
     if (item.id === 0) {
       const listId = this.selectedListId()!;
+      this.editingDueDate = this.editingDueDate ? this.editingDueDate : 0;
       this.itemsClient
         .createTodoItem({ title: item.title, listId, dueDate: this.editingDueDate } as CreateTodoItemCommand)
         .subscribe({
