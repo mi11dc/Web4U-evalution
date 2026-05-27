@@ -17,7 +17,7 @@
       <ul>
         @for (list of lists(); track $index) {
           <li [attr.aria-current]="selectedList() === list ? 'true' : null"
-              (click)="selectedListId.set(list.id)">
+              (click)="onSelectedListChange(list.id)">
             <span class="colour-dot" [style.background]="list.colour" aria-hidden="true"></span>
             <span>{{ list.title }}</span>
             <small>{{ remainingItems(list) }}</small>
@@ -34,13 +34,27 @@
           <button class="icon-btn" (click)="showListOptionsDialog()"><lucide-icon name="settings" [size]="20" [strokeWidth]="2" /></button>
         </div>
 
+        <div class="grid">
+          <div>
+            <select [(ngModel)]="priorityFilter" (change)="filterChange()" name="select" aria-label="Priority" required>
+              <option [value]="0">All</option>
+              @for (item of priorityLevels(); track $index; let i = $index) {
+                @if (item.id !== 0) {
+                  <option [value]="item.id">{{item.title}}</option>
+                }
+              }
+            </select>
+          </div>
+        </div>
+
         @for (item of selectedList()!.items; track $index; let i = $index) {
-        <div class="todo-item">
-          <input type="checkbox" [(ngModel)]="item.done"/>
+        <div class="todo-item" [ngClass]="checkDueDate(item)">
+          <!--[ngClass]="checkDueDate(item)"-->
+          <input type="checkbox" [(ngModel)]="item.done" (click)="updateItem(item)" />
           @if (item === editingItem()) {
           <input id="{{ 'itemTitle' + i }}" type="text" class="todo-item-input"
                  [(ngModel)]="item.title" autofocus maxlength="200" />
-          <input id="{{ 'itemDueDate' + i }}" type="date" class="todo-item-input"
+          <input id="{{ 'itemDueDate' + i }}" type="date" class="todo-item-input" min="{{ minDateForDatePicker | date: 'yyyy-MM-dd':'UTC' }}"
                  value="{{ item.dueDate | date: 'yyyy-MM-dd':'UTC' }}" (change)="onDateChange($event, 1)" />
           <span>
             <span class="todo-item-text" (click)="editingItem() && updateItem(item)">Update</span>
@@ -65,7 +79,7 @@
           <input id="newItemInput" type="text" class="todo-item-input"
                  [(ngModel)]="newItemTitle"
                  maxlength="200" />
-          <input id="newDueDateInput" type="date" class="todo-item-input"
+          <input id="newDueDateInput" type="date" class="todo-item-input" min="{{ minDateForDatePicker | date: 'yyyy-MM-dd':'UTC' }}"
                  value="{{ newItemDueDate | date: 'yyyy-MM-dd':'UTC' }}" (change)="onDateChange($event)"/>
           <span>
             <span class="todo-item-text" (click)="addingItem() && commitNewItem()">Add</span>

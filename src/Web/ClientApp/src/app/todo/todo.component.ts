@@ -18,6 +18,7 @@ export class TasksComponent implements OnInit {
   @ViewChild('itemDetailsDialog') itemDetailsDialogRef: ElementRef<HTMLDialogElement>;
 
   lists = signal<TodoListDto[] | null>(null);
+  originalLists = signal<TodoListDto[] | null>(null);
   colours = signal<{ name: string, code: string }[]>([]);
   priorityLevels = signal<LookupDto[]>([]);
   selectedListId = signal<number | null>(null);
@@ -31,9 +32,14 @@ export class TasksComponent implements OnInit {
   newItemTitle = '';
   newItemDueDate = Date.now();
   addingItem = signal(false);
+
+  priorityFilter = 0;
+
   private originalTitle = '';
   private originalDueDate = 0;
   private editingDueDate = 0;
+
+  minDateForDatePicker = Date.now();
 
   constructor(
     private listsClient: TodoListsClient,
@@ -45,12 +51,13 @@ export class TasksComponent implements OnInit {
   ngOnInit(): void {
     this.listsClient.getTodoLists().subscribe({
       next: result => {
-        this.lists.set(result.lists);
+        this.originalLists.set(result.lists);
         this.priorityLevels.set(result.priorityLevels);
         this.colours.set(result.colours.map(c => ({ name: c.name, code: c.code })));
         if (result.lists.length) {
           this.selectedListId.set(result.lists[0].id);
         }
+        this.filterChange();
       },
       error: error => console.error(error)
     });
@@ -85,11 +92,13 @@ export class TasksComponent implements OnInit {
     this.listsClient.createTodoList({ title: list.title, colour: list.colour } as CreateTodoListCommand).subscribe({
       next: result => {
         list.id = result;
-        this.lists.update(ls => [...ls, list]);
+        this.originalLists.update(ls => [...ls, list]);
         this.selectedListId.set(list.id);
         this.newListDialogRef.nativeElement.close();
         this.newListEditor = {};
         this.newListError.set('');
+
+        this.filterChange();
       },
       error: error => {
         const errors = JSON.parse(error.response).errors;
@@ -121,8 +130,10 @@ export class TasksComponent implements OnInit {
     const newColour = this.listOptionsEditor.colour;
     this.listsClient.updateTodoList(id, this.listOptionsEditor as UpdateTodoListCommand).subscribe({
       next: () => {
-        this.lists.update(ls => ls.map(l => l.id === id ? { ...l, title: newTitle, colour: newColour } as TodoListDto : l));
+        this.originalLists.update(ls => ls.map(l => l.id === id ? { ...l, title: newTitle, colour: newColour } as TodoListDto : l));
         this.closeListOptionsDialog();
+
+        this.filterChange();
       },
       error: error => console.error(error)
     });
@@ -142,12 +153,19 @@ export class TasksComponent implements OnInit {
     this.listsClient.deleteTodoList(deletedId).subscribe({
       next: () => {
         this.closeDeleteListDialog();
-        this.lists.update(ls => ls.filter(l => l.id !== deletedId));
-        const remaining = this.lists()!;
+        this.originalLists.update(ls => ls.filter(l => l.id !== deletedId));
+        const remaining = this.originalLists()!;
         this.selectedListId.set(remaining.length ? remaining[0].id : null);
+        this.filterChange();
       },
       error: error => console.error(error)
     });
+  }
+
+  onSelectedListChange(id: number) {
+    this.selectedListId.set(id);
+    this.priorityFilter = 0;
+    this.filterChange();
   }
 
   // Items
@@ -168,7 +186,7 @@ export class TasksComponent implements OnInit {
     const isMoving = currentItem.listId !== this.itemDetailsEditor.listId;
     this.itemsClient.updateTodoItemDetail(currentItem.id, this.itemDetailsEditor as UpdateTodoItemDetailCommand).subscribe({
       next: () => {
-        this.lists.update(ls => ls.map(l => {
+        this.originalLists.update(ls => ls.map(l => {
           if (l.id === currentItem.listId && isMoving) {
             return { ...l, items: l.items.filter(i => i.id !== currentItem.id) } as TodoListDto;
           }
@@ -184,6 +202,7 @@ export class TasksComponent implements OnInit {
           }
           return l;
         }));
+        this.filterChange();
         this.closeItemDetailsDialog();
       },
       error: error => console.error(error)
@@ -210,21 +229,23 @@ export class TasksComponent implements OnInit {
     }
     const listId = this.selectedListId()!;
     const title = this.newItemTitle.trim();
-    const dueDate = this.newItemDueDate;
+    const dueDate = this.newItemDueDate ? this.newItemDueDate : 0;
     this.itemsClient.createTodoItem({ title, listId, dueDate } as CreateTodoItemCommand).subscribe({
       next: result => {
-        this.lists.update(ls => ls.map(l => l.id === listId
+        this.originalLists.update(ls => ls.map(l => l.id === listId
           ? { ...l, items: [...l.items, { id: result, listId, title, dueDate: dueDate, done: false, priority: this.priorityLevels()[0].id } as TodoItemDto] } as TodoListDto
           : l
         ));
         this.newItemTitle = '';
         this.newItemDueDate = Date.now();
+
+        this.filterChange();
       },
       error: error => console.error(error)
     });
   }
 
-  onDateChange(event, type = 0) {
+  onDateChange(event, type = 0): void {
     if (!event && !event.srcElement && event.srcElement.value) {
       return;
     }
@@ -253,10 +274,6 @@ export class TasksComponent implements OnInit {
   }
 
   updateItem(item: TodoItemDto): void {
-    debugger;
-    console.log(item);
-    console.log(this.originalDueDate);
-    console.log(this.originalTitle);
     if (!item.title.trim()) {
       this.deleteItem(item);
       return;
@@ -268,15 +285,16 @@ export class TasksComponent implements OnInit {
         .createTodoItem({ title: item.title, listId, dueDate: this.editingDueDate } as CreateTodoItemCommand)
         .subscribe({
           next: result => {
-            this.lists.update(ls => ls.map(l => l.id === listId
+            this.originalLists.update(ls => ls.map(l => l.id === listId
               ? { ...l, items: l.items.map(i => i === item ? { ...i, id: result } as TodoItemDto : i) } as TodoListDto
               : l
             ));
+            this.filterChange();
           },
           error: error => console.error(error)
         });
     } else {
-      item.dueDate = this.editingDueDate;
+      item.dueDate = this.editingDueDate ? this.editingDueDate : 0;
       this.itemsClient.updateTodoItem(item.id, item as UpdateTodoItemCommand).subscribe({
         next: () => console.log('Update succeeded.'),
         error: error => console.error(error)
@@ -295,22 +313,68 @@ export class TasksComponent implements OnInit {
     const listId = this.selectedListId()!;
     if (item.id === 0) {
       const currentItem = this.selectedItem()!;
-      this.lists.update(ls => ls.map(l => l.id === listId
+      this.originalLists.update(ls => ls.map(l => l.id === listId
         ? { ...l, items: l.items.filter(i => i !== currentItem) } as TodoListDto
         : l
       ));
+      this.filterChange();
       this.editingItem.set(null);
       this.editingDueDate = 0;
     } else {
       this.itemsClient.deleteTodoItem(item.id).subscribe({
         next: () => {
-          this.lists.update(ls => ls.map(l => l.id === listId
+          this.originalLists.update(ls => ls.map(l => l.id === listId
             ? { ...l, items: l.items.filter(i => i.id !== item.id) } as TodoListDto
             : l
           ));
+          this.filterChange();
         },
         error: error => console.error(error)
       });
     }
+  }
+
+  filterChange(): void {
+    if (!this.selectedListId() && !this.originalLists()) {
+      return;
+    }
+
+    if (this.priorityFilter?.toString() === '0') {
+      this.lists.set(this.originalLists());
+      return;
+    }
+
+    this.lists.set(
+      this.originalLists()?.map(ol =>
+        ol.id === this.selectedListId()
+          ? ({
+            ...ol,
+            items: ol.items.filter(
+              i => i.priority?.toString() === this.priorityFilter?.toString()
+            ) as TodoItemDto[]
+          } as TodoListDto)
+          : ol
+      ) ?? []
+    );
+  }
+
+  checkDueDate(item: TodoItemDto): string {
+    debugger;
+    if (item?.dueDate?.toString() === '0' && !item.done) {
+      return 'dueItem';
+    }
+
+    if (item.done) {
+      return '';
+    }
+
+    // Only considering Date for dueDate
+    const currentDateTS= new Date((new Date()).toJSON().split('T')[0]).getTime();
+    const itemDateTS = new Date(new Date(item?.dueDate).toJSON()?.split('T')[0])?.getTime();
+    if (itemDateTS < currentDateTS) {
+      return 'dueItem';
+    }
+
+    return '';
   }
 }

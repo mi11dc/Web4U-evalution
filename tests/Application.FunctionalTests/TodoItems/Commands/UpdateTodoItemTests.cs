@@ -27,13 +27,15 @@ public class UpdateTodoItemTests : TestBase
         var itemId = await TestApp.SendAsync(new CreateTodoItemCommand
         {
             ListId = listId,
-            Title = "New Item"
+            Title = "New Item",
+            DueDate = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds()
         });
 
         var command = new UpdateTodoItemCommand
         {
             Id = itemId,
-            Title = "Updated Item Title"
+            Title = "Updated Item Title",
+            DueDate = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() + 10
         };
 
         await TestApp.SendAsync(command);
@@ -42,6 +44,7 @@ public class UpdateTodoItemTests : TestBase
 
         item.ShouldNotBeNull();
         item!.Title.ShouldBe(command.Title);
+        item!.DueDate.ShouldBe(command.DueDate);
         item.LastModifiedBy.ShouldNotBeNull();
         item.LastModifiedBy.ShouldBe(userId);
         item.LastModified.ShouldBe(DateTime.Now, TimeSpan.FromMilliseconds(10000));

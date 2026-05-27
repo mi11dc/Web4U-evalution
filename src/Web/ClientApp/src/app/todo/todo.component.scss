@@ -1,1 +1,16 @@
 // Styles handled globally in styles.scss
+
+.dueItem {
+  background: #b81717;
+  color: #ffffff;
+
+  input {
+    color: #ffffff;
+  }
+
+  .icon-btn {
+    lucide-icon {
+      color: #ffffff;
+    }
+  }
+}
