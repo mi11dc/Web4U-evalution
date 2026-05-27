@@ -34,6 +34,7 @@ export class TasksComponent implements OnInit {
   addingItem = signal(false);
 
   priorityFilter = 0;
+  completedFilter = 0;
 
   private originalTitle = '';
   private originalDueDate = 0;
@@ -165,6 +166,7 @@ export class TasksComponent implements OnInit {
   onSelectedListChange(id: number) {
     this.selectedListId.set(id);
     this.priorityFilter = 0;
+    this.completedFilter = 0;
     this.filterChange();
   }
 
@@ -339,42 +341,71 @@ export class TasksComponent implements OnInit {
       return;
     }
 
-    if (this.priorityFilter?.toString() === '0') {
-      this.lists.set(this.originalLists());
-      return;
-    }
+    const completed = Number(this.completedFilter);
+    const priority = Number(this.priorityFilter);
 
-    this.lists.set(
-      this.originalLists()?.map(ol =>
-        ol.id === this.selectedListId()
-          ? ({
-            ...ol,
-            items: ol.items.filter(
-              i => i.priority?.toString() === this.priorityFilter?.toString()
-            ) as TodoItemDto[]
-          } as TodoListDto)
-          : ol
-      ) ?? []
-    );
+    const filtered = this.originalLists().map(list => {
+      if (list.id === this.selectedListId()) {
+        const items = list.items.filter(item => {
+          // done filter
+          const matchesDone =
+            completed === 0
+              ? true
+              : completed === 1
+                ? item.done === false
+                : item.done === true;
+
+          // priority filter
+          const matchesPriority = priority === 0 ? true : item.priority === priority;
+
+          return matchesDone && matchesPriority;
+        }) as TodoItemDto[];
+        return { ...list, items: items.map(i => ({ ...i })) } as TodoListDto;
+      }
+      return list as TodoListDto
+    });
+
+    this.lists.set(filtered);
+
+    // Only Priority Filter
+    // if (this.priorityFilter?.toString() === '0') {
+    //   this.lists.set(this.originalLists());
+    //   return;
+    // }
+
+    // this.lists.set(
+    //   this.originalLists()?.map(ol =>
+    //     ol.id === this.selectedListId()
+    //       ? ({
+    //         ...ol,
+    //         items: ol.items.filter(
+    //           i => i.priority?.toString() === this.priorityFilter?.toString() 
+    //         ) as TodoItemDto[]
+    //       } as TodoListDto)
+    //       : ol
+    //   ) ?? []
+    // );
   }
 
-  checkDueDate(item: TodoItemDto): string {
-    debugger;
+  checkDueDate(item: TodoItemDto): boolean {
+    let bool = false;
     if (item?.dueDate?.toString() === '0' && !item.done) {
-      return 'dueItem';
+      bool = !bool;
+      return bool;
     }
 
     if (item.done) {
-      return '';
+      return bool;
     }
 
     // Only considering Date for dueDate
     const currentDateTS= new Date((new Date()).toJSON().split('T')[0]).getTime();
     const itemDateTS = new Date(new Date(item?.dueDate).toJSON()?.split('T')[0])?.getTime();
     if (itemDateTS < currentDateTS) {
-      return 'dueItem';
+      bool = !bool;
+      return bool;
     }
 
-    return '';
+    return bool;
   }
 }

@@ -35,21 +35,27 @@
         </div>
 
         <div class="grid">
-          <div>
-            <select [(ngModel)]="priorityFilter" (change)="filterChange()" name="select" aria-label="Priority" required>
-              <option [value]="0">All</option>
+          <div class="todo-item">
+            <select [(ngModel)]="priorityFilter" (change)="filterChange()" name="Select Priority" aria-label="Priority" required>
+              <option class="todo-item-text" [value]="0">All</option>
               @for (item of priorityLevels(); track $index; let i = $index) {
                 @if (item.id !== 0) {
-                  <option [value]="item.id">{{item.title}}</option>
+                  <option class="todo-item-text" [value]="item.id">{{item.title}}</option>
                 }
               }
+            </select>
+          </div>
+          <div class="todo-item">
+            <select [(ngModel)]="completedFilter" (change)="filterChange()" name="Select Active Task" aria-label="Completed" required>
+              <option class="todo-item-text" [value]="0">All</option>
+              <option class="todo-item-text" [value]="1">Active</option>
+              <option class="todo-item-text" [value]="2">Completed</option>
             </select>
           </div>
         </div>
 
         @for (item of selectedList()!.items; track $index; let i = $index) {
-        <div class="todo-item" [ngClass]="checkDueDate(item)">
-          <!--[ngClass]="checkDueDate(item)"-->
+        <div class="todo-item" [ngClass]="checkDueDate(item) ? 'dueitem' : ''">
           <input type="checkbox" [(ngModel)]="item.done" (click)="updateItem(item)" />
           @if (item === editingItem()) {
           <input id="{{ 'itemTitle' + i }}" type="text" class="todo-item-input"
@@ -63,7 +69,12 @@
           </span>
           } @else {
           <span class="todo-item-text" [class.todo-done]="item.done"
-                (click)="editItem(item, 'itemTitle' + i)">{{ item.title }}</span>
+                (click)="editItem(item, 'itemTitle' + i)">
+            @if (checkDueDate(item) && item.dueDate !== 0) {
+              <sup>&nbsp;Overdue&nbsp;</sup>
+            }
+            {{ item.title }}
+          </span>
           <span class="todo-item-text" [class.todo-done]="item.done"
                 (click)="editItem(item, 'itemDueDate' + i)">{{ (item.dueDate !== 0) ? (item.dueDate | date: 'yyyy-MM-dd':'UTC') : "No Due Date" }}</span>
           }

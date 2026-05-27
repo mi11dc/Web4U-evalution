@@ -1,16 +1,30 @@
 // Styles handled globally in styles.scss
 
-.dueItem {
-  background: #b81717;
-  color: #ffffff;
+.dueitem {
+  display:flex;
+  border-bottom: 1px solid var(--pico-del-color);
 
-  input {
-    color: #ffffff;
+  sup {
+    animation: blink 1s step-start infinite;
+    border: var(--pico-del-color) 2px solid;
+    border-radius: 15px;
+    color: var(--pico-del-color);
   }
+}
 
-  .icon-btn {
-    lucide-icon {
-      color: #ffffff;
-    }
+/* Keyframes for blinking effect */
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.grid {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+
+  select {
+    flex: 1;
   }
 }
